@@ -2,8 +2,6 @@
 Library for safe and easy execution of functions
 """  # pylint: disable=too-many-lines
 import typing
-import logging
-import ipaddress
 from datetime import datetime
 
 
@@ -16,12 +14,16 @@ class Task:
         self,
         action: typing.Optional[typing.Callable],
         rollback: typing.Optional[typing.Callable] = None,
+        uses_output=True,
+        rollback_uses_output=True,
     ):
         self._action = action
         self._success = None
         self._has_run = False
         self._output = None
         self.rollback = rollback
+        self._uses_output = uses_output
+        self._rollback_uses_output = rollback_uses_output
 
     # Flush methods should be used if task manager is a global instance
     # to avoid two subsequent operations from accessing the same instance's
@@ -45,7 +47,7 @@ class Task:
         self._flush_output()
         self._flush_status()
 
-    def run(self, get_output_for=None, **kwargs):
+    def run(self, **kwargs):
         """
                 runs task and save the output
                 Args:
@@ -59,7 +61,7 @@ class Task:
                     Re-raises the original exception"
         """
         try:
-            self._output = self._action(get_output_for=get_output_for, **kwargs)
+            self._output = self._action(**kwargs)
             self._success = True
             self._has_run = True
         except:
@@ -85,6 +87,13 @@ class Task:
         """
         return self._success
 
+    def uses_output(self):
+        """
+        check if this task needs to access outputs from other tasks.
+        defaults to True.
+        """
+        return self._uses_output
+
 
 class TaskFailedError(Exception):
     """
@@ -95,13 +104,12 @@ class TaskFailedError(Exception):
     pass
 
 
-class RollbackFailedError(Exception):
+class OutputNotAvailableError(Exception):
     """
     this exception should be raised when
-    executed rollback task was a failure
+    task output is not available because
+    the task has not run.
     """
-
-    pass
 
 
 class TaskManager:
@@ -206,6 +214,10 @@ class TaskManager:
         """
         try:
             selected = self.tasks[task_name]
+            if not selected.has_run():
+                raise OutputNotAvailableError(
+                    f"{task_name} has not run therefore its output is not available."
+                )
             return selected.get_output()
         except KeyError as e:
             raise Exception(
@@ -218,11 +230,13 @@ class TaskManager:
         """
         return self._get_output_for(task_name)
 
-    def _register_rollback_task(self, function: typing.Callable, **kwargs):
+    def _register_rollback_task(
+        self, function: typing.Callable, rollback_uses_output, **kwargs
+    ):
         """
         Registers a rollback task.
         """
-        self.register_task(function, **kwargs)
+        self.register_task(function, uses_output=rollback_uses_output, **kwargs)
         if not function.__name__ in self._on_rollback:
             self._on_rollback.insert(0, function.__name__)
 
@@ -259,13 +273,19 @@ class TaskManager:
                 current_task = self.tasks[t]
                 if current_task.has_run() and current_task.is_success():
                     continue
-                current_task.run(self._get_output_for, **kwargs)
+                if current_task.uses_output():
+                    current_task.run(get_output_for=self._get_output_for, **kwargs)
+                else:
+                    current_task.run(**kwargs)
                 if not current_task.is_success():
                     raise TaskFailedError(f"Task '{t}' has been tagged non successful")
                 # Register rollback task only if current task was run succesfully
                 # we dont need to rollback a failed task because it failed
                 if current_task.rollback:
-                    self._register_rollback_task(function=current_task.rollback)
+                    self._register_rollback_task(
+                        function=current_task.rollback,
+                        rollback_uses_output=current_task._rollback_uses_output,
+                    )
             except Exception as e:
                 raise TaskFailedError(f"Task '{t}' failed") from e
 
