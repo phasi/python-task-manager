@@ -101,8 +101,6 @@ class TaskFailedError(Exception):
     executed task was a failure
     """
 
-    pass
-
 
 class OutputNotAvailableError(Exception):
     """
@@ -169,7 +167,7 @@ class TaskManager:
 
         Arguments:
         function: typing.Callable[] - function to be used as a task
-        **kwargs - keyword arguments will be passed to the Task() on __init__()
+        **kwargs - keyword arguments to be passed to the Task() on __init__()
         """
         self._register(
             task_name=function.__name__, task=Task(action=function, **kwargs)
@@ -237,6 +235,7 @@ class TaskManager:
         Registers a rollback task.
         """
         self.register_task(function, uses_output=rollback_uses_output, **kwargs)
+        # add unique (by name) rollback tasks only
         if not function.__name__ in self._on_rollback:
             self._on_rollback.insert(0, function.__name__)
 
@@ -260,7 +259,7 @@ class TaskManager:
             Re-raises the original exception
             KeyError when task cannot be find in registered tasks
         """
-        current_task = None
+        # current_task = None
         # Validate task names first
         for t in tasks:
             try:
@@ -280,7 +279,7 @@ class TaskManager:
                 if not current_task.is_success():
                     raise TaskFailedError(f"Task '{t}' has been tagged non successful")
                 # Register rollback task only if current task was run succesfully
-                # we dont need to rollback a failed task because it failed
+                # we dont need to rollback the current task because it failed
                 if current_task.rollback:
                     self._register_rollback_task(
                         function=current_task.rollback,
