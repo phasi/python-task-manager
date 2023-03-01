@@ -24,6 +24,26 @@ class Task:
         self.rollback = rollback
         self._uses_output = uses_output
         self._rollback_uses_output = rollback_uses_output
+        self._input = None
+
+    @classmethod
+    def make_backup(cls, task):
+        """
+        makes a clone/backup of tasks
+        """
+        backup_task = cls(action=task.action)
+        backup_task._success = task.is_success()
+        backup_task._has_run = task.has_run()
+        backup_task._output = task.get_output()
+        backup_task.rollback = task.rollback
+        backup_task._uses_output = task.uses_output()
+        backup_task._rollback_uses_output = task.rollback_uses_output()
+        backup_task._input = task.get_input()
+        return backup_task
+
+    @property
+    def action(self):
+        return self._action
 
     # Flush methods should be used if task manager is a global instance
     # to avoid two subsequent operations from accessing the same instance's
@@ -61,6 +81,9 @@ class Task:
                     Re-raises the original exception"
         """
         try:
+            # save keyword arguments (input)
+            self._input = kwargs
+            # run task function/action and save output
             self._output = self._action(**kwargs)
             self._success = True
             self._has_run = True
@@ -93,6 +116,19 @@ class Task:
         defaults to True.
         """
         return self._uses_output
+
+    def rollback_uses_output(self):
+        """
+        check if rollback needs access to outputs from other tasks.
+        Defaults to True.
+        """
+        return self._rollback_uses_output
+
+    def get_input(self):
+        """
+        Returns input as dictionary (what was sent as input to the task)
+        """
+        return self._input
 
 
 class TaskFailedError(Exception):
