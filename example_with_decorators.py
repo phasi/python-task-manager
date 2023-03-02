@@ -24,14 +24,14 @@ def task2(get_output_for):
 
 
 @tm.task(uses_output=False)
-def task3(get_output_for, input):
+def task3():
     # Uncomment below line to test rollback logic when failing task 3
     # raise Exception("This fails")
     return "hello from task 3"
 
 
 try:
-    tm.run_tasks(["task1", "task2", "task3"], input=input)
+    tm.run_tasks(["task1", "task2", "task3"])
 
     print(tm.get_output_for("task2"))
 
