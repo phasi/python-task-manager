@@ -4,10 +4,9 @@ from setuptools import setup, find_packages
 # get key package details from py_pkg/__version__.py
 about = {}  # type: ignore
 here = os.path.abspath(os.path.dirname(__file__))
-# with open(os.path.join(here, 'py_pkg', '__version__.py')) as f:
-#     exec(f.read(), about)
-with open("__version__.py") as f:
+with open(os.path.join(here, "src", "__version__.py")) as f:
     exec(f.read(), about)
+
 
 # load the README file and use it as the long_description for PyPI
 with open("README.md", "r") as f:
