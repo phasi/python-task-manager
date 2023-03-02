@@ -2,7 +2,6 @@
 Library for safe and easy execution of functions
 """  # pylint: disable=too-many-lines
 import typing
-from datetime import datetime
 
 
 class Task:
