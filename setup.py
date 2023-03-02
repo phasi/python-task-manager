@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 # get key package details from py_pkg/__version__.py
 about = {}  # type: ignore
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, "src", "__version__.py")) as f:
+with open(os.path.join(here, "task_manager", "__version__.py")) as f:
     exec(f.read(), about)
 
 
@@ -24,16 +24,15 @@ setup(
     author_email=about["__author_email__"],
     url=about["__url__"],
     # packages=["src/task_manager.py"],
-    packages=find_packages("src"),
-    package_dir={"": "src"},
+    packages=find_packages(),
     include_package_data=True,
     python_requires=">=3.7",
-    install_requires=["numpy", "requests"],
+    install_requires=[],
     license=about["__license__"],
     zip_safe=False,
-    entry_points={
-        "console_scripts": ["py-package-template=py_pkg.entry_points:main"],
-    },
+    # entry_points={
+    #     "console_scripts": ["py-package-template=py_pkg.entry_points:main"],
+    # },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
