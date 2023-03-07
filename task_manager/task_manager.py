@@ -24,6 +24,7 @@ class Task:
         self._uses_output = uses_output
         self._rollback_uses_output = rollback_uses_output
         self._input = None
+        self._exception = None
 
     @classmethod
     def make_backup(cls, task):
@@ -86,7 +87,8 @@ class Task:
             self._output = self._action(**kwargs)
             self._success = True
             self._has_run = True
-        except:
+        except Exception as e:
+            self._exception = e
             self._success = False
             self._has_run = True
             raise
@@ -129,6 +131,9 @@ class Task:
         """
         return self._input
 
+    def get_exception(self):
+        return self._exception
+
 
 class TaskFailedError(Exception):
     """
@@ -143,6 +148,22 @@ class OutputNotAvailableError(Exception):
     task output is not available because
     the task has not run.
     """
+
+
+class TaskManagerResult:
+    """
+    Result for all tasks registered in the task manager
+    """
+
+    def __init__(
+        self, tasks_success=None, tasks_not_run=None, tasks_failed=None, exceptions=None
+    ):
+        self.tasks_success = tasks_success or []
+        self.tasks_failed = tasks_failed or []
+        self.exceptions = exceptions or []
+
+    def as_dict(self):
+        return self.__dict__
 
 
 class TaskManager:
@@ -193,8 +214,8 @@ class TaskManager:
         ...running tasks...and then...
         tm.flush_tasks()
         """
-        for task in self.tasks.items():
-            task.flush()
+        for t in self.tasks:
+            self.tasks[t].flush()
 
     def register_task(self, function: typing.Callable, **kwargs):
         """
@@ -318,7 +339,7 @@ class TaskManager:
                 if current_task.rollback:
                     self._register_rollback_task(
                         function=current_task.rollback,
-                        rollback_uses_output=current_task._rollback_uses_output,
+                        rollback_uses_output=current_task.rollback_uses_output(),
                     )
             except Exception as e:
                 raise TaskFailedError(f"Task '{t}' failed") from e
@@ -333,3 +354,17 @@ class TaskManager:
         except Exception:
             self._rollback_dependencies(**kwargs)
             raise
+
+    def get_result(self):
+        result = TaskManagerResult()
+        for t in self.tasks:
+            task = self.tasks[t]
+            task_name = task.action.__name__
+            if not task.has_run():
+                continue
+            if task.is_success():
+                result.tasks_success.append(task_name)
+                continue
+            result.tasks_failed.append(task_name)
+            result.exceptions.append(task.get_exception())
+        return result
